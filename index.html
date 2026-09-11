@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hellcastle NFL Pick 'Em</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body {
+      background-color: #0f172a;
+      color: #f8fafc;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    }
+    .accent-card {
+      background: linear-gradient(145deg, #1e293b, #0f172a);
+      border: 1px solid #334155;
+    }
+  </style>
+</head>
+<body class="min-h-screen p-4 md:p-8">
+
+  <div class="max-w-6xl mx-auto space-y-6">
+    <!-- Header -->
+    <header class="flex flex-col md:flex-row justify-between items-center bg-slate-800 p-6 rounded-xl border border-slate-700 gap-4">
+      <div>
+        <h1 class="text-3xl font-extrabold text-amber-500 tracking-wide uppercase">Hellcastle NFL Pick 'Em</h1>
+        <p class="text-slate-400 text-sm">Season Leaderboard & Weekly Pick Tracking</p>
+      </div>
+      <div class="flex items-center gap-3">
+        <label for="weekSelect" class="text-sm font-semibold text-slate-300">Select Week:</label>
+        <select id="weekSelect" onchange="renderApp()" class="bg-slate-900 border border-slate-700 text-amber-400 font-bold px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500">
+          <option value="1">Week 1</option>
+          <option value="2">Week 2</option>
+        </select>
+      </div>
+    </header>
+
+    <!-- Overall Leaderboard -->
+    <section class="accent-card p-6 rounded-xl shadow-xl">
+      <h2 class="text-xl font-bold text-slate-200 mb-4 flex items-center gap-2">
+        <span>🏆</span> Season Standings
+      </h2>
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm text-slate-300">
+          <thead class="bg-slate-900/60 text-slate-400 uppercase text-xs">
+            <tr>
+              <th class="py-3 px-4 rounded-l-lg">Rank</th>
+              <th class="py-3 px-4">Player</th>
+              <th class="py-3 px-4 text-center">Week 1 Correct</th>
+              <th class="py-3 px-4 text-center">Week 2 Correct</th>
+              <th class="py-3 px-4 text-right rounded-r-lg">Total Score</th>
+            </tr>
+          </thead>
+          <tbody id="leaderboardBody" class="divide-y divide-slate-800">
+            <!-- Populated via JS -->
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- Weekly Breakdown -->
+    <section class="accent-card p-6 rounded-xl shadow-xl">
+      <h2 id="weeklyTitle" class="text-xl font-bold text-slate-200 mb-4 flex items-center gap-2">
+        <span>🏈</span> Week 1 Pick Details
+      </h2>
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-sm text-slate-300">
+          <thead class="bg-slate-900/60 text-slate-400 uppercase text-xs" id="weeklyHead">
+            <!-- Populated via JS -->
+          </thead>
+          <tbody id="weeklyBody" class="divide-y divide-slate-800">
+            <!-- Populated via JS -->
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+
+  <script>
+    // 1. CONFIGURATION: Define correct winning team names per week
+    const WINNERS = {
+      1: {
+        "KC vs BAL": "KC",
+        "PHI vs GB": "PHI",
+        "DAL vs CLE": "DAL"
+      },
+      2: {
+        "MIA vs BUF": "BUF",
+        "BAL vs LV": "LV",
+        "KC vs CIN": "KC"
+      }
+    };
+
+    // 2. DATA: Insert Google Sheet / Google Form responses (CSV or JSON output)
+    const RESPONSES = [
+      {
+        name: "Herb",
+        picks: {
+          1: { "KC vs BAL": "KC", "PHI vs GB": "PHI", "DAL vs CLE": "DAL" },
+          2: { "MIA vs BUF": "BUF", "BAL vs LV": "BAL", "KC vs CIN": "KC" }
+        }
+      },
+      {
+        name: "Swanson",
+        picks: {
+          1: { "KC vs BAL": "BAL", "PHI vs GB": "PHI", "DAL vs CLE": "CLE" },
+          2: { "MIA vs BUF": "BUF", "BAL vs LV": "LV", "KC vs CIN": "KC" }
+        }
+      },
+      {
+        name: "BOOM",
+        picks: {
+          1: { "KC vs BAL": "KC", "PHI vs GB": "GB", "DAL vs CLE": "DAL" },
+          2: { "MIA vs BUF": "MIA", "BAL vs LV": "LV", "KC vs CIN": "CIN" }
+        }
+      }
+    ];
+
+    function calculateScores(player, week) {
+      const weekPicks = player.picks[week] || {};
+      const weekWinners = WINNERS[week] || {};
+      let score = 0;
+
+      for (const game in weekWinners) {
+        if (weekPicks[game] === weekWinners[game]) {
+          score++;
+        }
+      }
+      return score;
+    }
+
+    function renderApp() {
+      const selectedWeek = parseInt(document.getElementById("weekSelect").value);
+      document.getElementById("weeklyTitle").innerText = `🏈 Week ${selectedWeek} Pick Details`;
+
+      // Calculate totals for each player
+      const playerStats = RESPONSES.map(player => {
+        const w1Score = calculateScores(player, 1);
+        const w2Score = calculateScores(player, 2);
+        return {
+          name: player.name,
+          w1: w1Score,
+          w2: w2Score,
+          total: w1Score + w2Score,
+          picks: player.picks[selectedWeek] || {}
+        };
+      });
+
+      // Sort by cumulative total score descending
+      playerStats.sort((a, b) => b.total - a.total);
+
+      // Render Leaderboard
+      const leaderboardBody = document.getElementById("leaderboardBody");
+      leaderboardBody.innerHTML = playerStats.map((p, idx) => `
+        <tr class="hover:bg-slate-800/50 transition">
+          <td class="py-3 px-4 font-bold text-amber-500">#${idx + 1}</td>
+          <td class="py-3 px-4 font-semibold text-white">${p.name}</td>
+          <td class="py-3 px-4 text-center">${p.w1}</td>
+          <td class="py-3 px-4 text-center">${p.w2}</td>
+          <td class="py-3 px-4 text-right font-extrabold text-amber-400">${p.total} pts</td>
+        </tr>
+      `).join("");
+
+      // Render Weekly Picks Header
+      const weekGames = Object.keys(WINNERS[selectedWeek]);
+      const weeklyHead = document.getElementById("weeklyHead");
+      weeklyHead.innerHTML = `
+        <tr>
+          <th class="py-3 px-4 rounded-l-lg">Player</th>
+          ${weekGames.map(g => `<th class="py-3 px-4 text-center">${g}<br><span class="text-xs text-amber-500 font-normal">(Winner: ${WINNERS[selectedWeek][g]})</span></th>`).join("")}
+          <th class="py-3 px-4 text-right rounded-r-lg">Week ${selectedWeek} Score</th>
+        </tr>
+      `;
+
+      // Render Weekly Picks Rows
+      const weeklyBody = document.getElementById("weeklyBody");
+      weeklyBody.innerHTML = playerStats.map(p => {
+        const weekWinners = WINNERS[selectedWeek];
+        const gameCells = weekGames.map(game => {
+          const pick = p.picks[game] || "-";
+          const isCorrect = pick === weekWinners[game];
+          const badgeColor = isCorrect 
+            ? "bg-emerald-900/60 text-emerald-400 border border-emerald-700" 
+            : "bg-rose-900/60 text-rose-400 border border-rose-700";
+          return `<td class="py-3 px-4 text-center"><span class="px-2 py-1 rounded text-xs font-bold ${badgeColor}">${pick}</span></td>`;
+        }).join("");
+
+        const weekScore = p[`w${selectedWeek}`];
+        return `
+          <tr class="hover:bg-slate-800/50 transition">
+            <td class="py-3 px-4 font-semibold text-white">${p.name}</td>
+            ${gameCells}
+            <td class="py-3 px-4 text-right font-bold text-slate-200">${weekScore} / ${weekGames.length}</td>
+          </tr>
+        `;
+      }).join("");
+    }
+
+    // Initialize on load
+    renderApp();
+  </script>
+</body>
+</html>
