@@ -72,30 +72,18 @@
   <script>
     // 1. SETTINGS & CONSTANTS
     const TOTAL_WEEKS = 22;
-    // Replace with your Google Sheet published CSV URL
+    // Published Google Sheet CSV URL
     const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQKVQOWhA9vE55DU0pz53JIE2ViLnW6tuH-vfKJO12IjZXG0r6E6qnEwaPNvQFf0Ir-5cJzT0BfgWg3/pub?output=csv";
 
-    // Set weekly winning team outcomes for each game
+    // Set weekly winning team outcomes for completed games only
+    // Leave out games that haven't finished yet or leave them set to null
     const WINNERS = {
       1: {
-        "Patriots vs Seahawks": "Patriots",
-        "49ers vs Rams": "Rams",
-        "Saints vs Lions": "Lions",
-        "Falcons vs Steelers": "Steelers",
-        "Ravens vs Colts": "Ravens",
-        "Bills vs Texans": "Bills",
-        "Bears vs Panthers": "Bears",
-        "Browns vs Jaguars": "Jaguars",
-        "Jets vs Titans": "Jets",
-        "Buccaneers vs Bengals": "Buccaneers",
-        "Cardinals vs Chargers": "Chargers",
-        "Packers vs Vikings": "Vikings",
-        "Dolphins vs Raiders": "Raiders",
-        "Commanders vs Eagles": "Eagles",
-        "Cowboys vs Giants": "Cowboys",
-        "Broncos vs Chiefs": "Chiefs"
+        "Patriots vs Seahawks": "Seahawks",
+        "49ers vs Rams": "Rams"
+        // Unfinished Week 1 games remain pending
       }
-      // Add keys 2 through 22 as games progress
+      // Add keys 2 through 22 as weeks progress
     };
 
     let rawResponses = [];
@@ -109,7 +97,7 @@
       weekSelect.appendChild(opt);
     }
 
-    // Load data from Google Sheet CSV or local array
+    // Load data from Google Sheet CSV
     function loadSheetData() {
       if (SHEET_CSV_URL.startsWith("http")) {
         Papa.parse(SHEET_CSV_URL, {
@@ -145,7 +133,7 @@
       const weekWinners = WINNERS[week] || {};
       let score = 0;
       for (const game in weekWinners) {
-        if (playerPicks && playerPicks[game] === weekWinners[game]) {
+        if (weekWinners[game] && playerPicks && playerPicks[game] === weekWinners[game]) {
           score++;
         }
       }
@@ -176,7 +164,7 @@
 
       playerStats.sort((a, b) => b.total - a.total);
 
-      // Render Standings
+      // Render Cumulative Standings
       const leaderboardBody = document.getElementById("leaderboardBody");
       leaderboardBody.innerHTML = playerStats.map((p, idx) => `
         <tr class="hover:bg-slate-800/50 transition">
@@ -187,8 +175,11 @@
         </tr>
       `).join("");
 
-      // Render Weekly Picks Table
-      const weekGames = Object.keys(WINNERS[selectedWeek] || {});
+      // Derive all game matchups present in responses or completed winners
+      const allMatchesInPicks = playerStats.length > 0 ? Object.keys(playerStats[0].picks) : [];
+      const weekWinners = WINNERS[selectedWeek] || {};
+      const weekGames = Array.from(new Set([...allMatchesInPicks, ...Object.keys(weekWinners)]));
+
       const weeklyHead = document.getElementById("weeklyHead");
 
       if (weekGames.length === 0) {
@@ -200,20 +191,35 @@
       weeklyHead.innerHTML = `
         <tr>
           <th class="py-3 px-4 rounded-l-lg">Player</th>
-          ${weekGames.map(g => `<th class="py-3 px-4 text-center">${g}<br><span class="text-xs text-amber-500 font-normal">(Winner: ${WINNERS[selectedWeek][g]})</span></th>`).join("")}
+          ${weekGames.map(g => {
+            const winner = weekWinners[g];
+            const winnerLabel = winner ? `Winner: ${winner}` : "Pending";
+            return `<th class="py-3 px-4 text-center">${g}<br><span class="text-xs text-amber-500 font-normal">(${winnerLabel})</span></th>`;
+          }).join("")}
           <th class="py-3 px-4 text-right rounded-r-lg">Week ${selectedWeek} Score</th>
         </tr>
       `;
 
+      // Render Weekly Table Rows with Green (Correct), Red (Incorrect), or Gray (Pending) Badges
       const weeklyBody = document.getElementById("weeklyBody");
       weeklyBody.innerHTML = playerStats.map(p => {
-        const weekWinners = WINNERS[selectedWeek];
         const gameCells = weekGames.map(game => {
           const pick = p.picks[game] || "-";
-          const isCorrect = pick === weekWinners[game];
-          const badgeColor = isCorrect 
-            ? "bg-emerald-900/60 text-emerald-400 border border-emerald-700" 
-            : "bg-rose-900/60 text-rose-400 border border-rose-700";
+          const winner = weekWinners[game];
+
+          let badgeColor = "";
+
+          if (!winner) {
+            // Game not finished / no winner declared yet -> Gray
+            badgeColor = "bg-slate-800 text-slate-400 border border-slate-700";
+          } else if (pick === winner) {
+            // Pick is correct -> Green
+            badgeColor = "bg-emerald-900/60 text-emerald-400 border border-emerald-700";
+          } else {
+            // Pick is incorrect -> Red
+            badgeColor = "bg-rose-900/60 text-rose-400 border border-rose-700";
+          }
+
           return `<td class="py-3 px-4 text-center"><span class="px-2 py-1 rounded text-xs font-bold ${badgeColor}">${pick}</span></td>`;
         }).join("");
 
@@ -221,7 +227,7 @@
           <tr class="hover:bg-slate-800/50 transition">
             <td class="py-3 px-4 font-semibold text-white">${p.name}</td>
             ${gameCells}
-            <td class="py-3 px-4 text-right font-bold text-slate-200">${p.selectedWeekScore} / ${weekGames.length}</td>
+            <td class="py-3 px-4 text-right font-bold text-slate-200">${p.selectedWeekScore} / ${Object.keys(weekWinners).length}</td>
           </tr>
         `;
       }).join("");
