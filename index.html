@@ -5,50 +5,43 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Hellcastle NFL Pick 'Em</title>
   <script src="https://cdn.tailwindcss.com"></script>
+  <!-- PapaParse for parsing Google Sheets CSV data -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
   <style>
-    body {
-      background-color: #0f172a;
-      color: #f8fafc;
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    }
-    .accent-card {
-      background: linear-gradient(145deg, #1e293b, #0f172a);
-      border: 1px solid #334155;
-    }
+    body { background-color: #0f172a; color: #f8fafc; font-family: system-ui, sans-serif; }
+    .accent-card { background: linear-gradient(145deg, #1e293b, #0f172a); border: 1px solid #334155; }
   </style>
 </head>
 <body class="min-h-screen p-4 md:p-8">
 
-  <div class="max-w-6xl mx-auto space-y-6">
+  <div class="max-w-7xl mx-auto space-y-6">
     <!-- Header -->
     <header class="flex flex-col md:flex-row justify-between items-center bg-slate-800 p-6 rounded-xl border border-slate-700 gap-4">
       <div>
         <h1 class="text-3xl font-extrabold text-amber-500 tracking-wide uppercase">Hellcastle NFL Pick 'Em</h1>
-        <p class="text-slate-400 text-sm">Season Leaderboard & Weekly Pick Tracking</p>
+        <p class="text-slate-400 text-sm">22-Week Leaderboard & Weekly Pick Tracking</p>
       </div>
       <div class="flex items-center gap-3">
         <label for="weekSelect" class="text-sm font-semibold text-slate-300">Select Week:</label>
         <select id="weekSelect" onchange="renderApp()" class="bg-slate-900 border border-slate-700 text-amber-400 font-bold px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500">
-          <option value="1">Week 1</option>
-          <option value="2">Week 2</option>
+          <!-- Populated dynamically up to Week 22 -->
         </select>
       </div>
     </header>
 
-    <!-- Overall Leaderboard -->
+    <!-- Overall Standings -->
     <section class="accent-card p-6 rounded-xl shadow-xl">
       <h2 class="text-xl font-bold text-slate-200 mb-4 flex items-center gap-2">
-        <span>🏆</span> Season Standings
+        <span>🏆</span> Cumulative Season Standings
       </h2>
       <div class="overflow-x-auto">
         <table class="w-full text-left text-sm text-slate-300">
           <thead class="bg-slate-900/60 text-slate-400 uppercase text-xs">
-            <tr>
+            <tr id="leaderboardHead">
               <th class="py-3 px-4 rounded-l-lg">Rank</th>
               <th class="py-3 px-4">Player</th>
-              <th class="py-3 px-4 text-center">Week 1 Correct</th>
-              <th class="py-3 px-4 text-center">Week 2 Correct</th>
-              <th class="py-3 px-4 text-right rounded-r-lg">Total Score</th>
+              <th class="py-3 px-4 text-center">Selected Week Correct</th>
+              <th class="py-3 px-4 text-right rounded-r-lg">Total Season Score</th>
             </tr>
           </thead>
           <tbody id="leaderboardBody" class="divide-y divide-slate-800">
@@ -61,7 +54,7 @@
     <!-- Weekly Breakdown -->
     <section class="accent-card p-6 rounded-xl shadow-xl">
       <h2 id="weeklyTitle" class="text-xl font-bold text-slate-200 mb-4 flex items-center gap-2">
-        <span>🏈</span> Week 1 Pick Details
+        <span>🏈</span> Pick Details
       </h2>
       <div class="overflow-x-auto">
         <table class="w-full text-left text-sm text-slate-300">
@@ -77,52 +70,82 @@
   </div>
 
   <script>
-    // 1. CONFIGURATION: Define correct winning team names per week
+    // 1. SETTINGS & CONSTANTS
+    const TOTAL_WEEKS = 22;
+    // Replace with your Google Sheet published CSV URL
+    const SHEET_CSV_URL = "YOUR_PUBLISHED_GOOGLE_SHEET_CSV_URL_HERE";
+
+    // Set weekly winning team outcomes for each game
     const WINNERS = {
       1: {
-        "KC vs BAL": "KC",
-        "PHI vs GB": "PHI",
-        "DAL vs CLE": "DAL"
-      },
-      2: {
-        "MIA vs BUF": "BUF",
-        "BAL vs LV": "LV",
-        "KC vs CIN": "KC"
+        "Patriots vs Seahawks": "Patriots",
+        "49ers vs Rams": "Rams",
+        "Saints vs Lions": "Lions",
+        "Falcons vs Steelers": "Steelers",
+        "Ravens vs Colts": "Ravens",
+        "Bills vs Texans": "Bills",
+        "Bears vs Panthers": "Bears",
+        "Browns vs Jaguars": "Jaguars",
+        "Jets vs Titans": "Jets",
+        "Buccaneers vs Bengals": "Buccaneers",
+        "Cardinals vs Chargers": "Chargers",
+        "Packers vs Vikings": "Vikings",
+        "Dolphins vs Raiders": "Raiders",
+        "Commanders vs Eagles": "Eagles",
+        "Cowboys vs Giants": "Cowboys",
+        "Broncos vs Chiefs": "Chiefs"
       }
+      // Add keys 2 through 22 as games progress
     };
 
-    // 2. DATA: Insert Google Sheet / Google Form responses (CSV or JSON output)
-    const RESPONSES = [
-      {
-        name: "Herb",
-        picks: {
-          1: { "KC vs BAL": "KC", "PHI vs GB": "PHI", "DAL vs CLE": "DAL" },
-          2: { "MIA vs BUF": "BUF", "BAL vs LV": "BAL", "KC vs CIN": "KC" }
-        }
-      },
-      {
-        name: "Swanson",
-        picks: {
-          1: { "KC vs BAL": "BAL", "PHI vs GB": "PHI", "DAL vs CLE": "CLE" },
-          2: { "MIA vs BUF": "BUF", "BAL vs LV": "LV", "KC vs CIN": "KC" }
-        }
-      },
-      {
-        name: "BOOM",
-        picks: {
-          1: { "KC vs BAL": "KC", "PHI vs GB": "GB", "DAL vs CLE": "DAL" },
-          2: { "MIA vs BUF": "MIA", "BAL vs LV": "LV", "KC vs CIN": "CIN" }
-        }
-      }
-    ];
+    let rawResponses = [];
 
-    function calculateScores(player, week) {
-      const weekPicks = player.picks[week] || {};
+    // Populate Week dropdown for 22 weeks
+    const weekSelect = document.getElementById("weekSelect");
+    for (let i = 1; i <= TOTAL_WEEKS; i++) {
+      const opt = document.createElement("option");
+      opt.value = i;
+      opt.innerText = `Week ${i}`;
+      weekSelect.appendChild(opt);
+    }
+
+    // Load data from Google Sheet CSV or local array
+    function loadSheetData() {
+      if (SHEET_CSV_URL.startsWith("http")) {
+        Papa.parse(SHEET_CSV_URL, {
+          download: true,
+          header: true,
+          complete: function(results) {
+            parseFormResponses(results.data);
+            renderApp();
+          }
+        });
+      } else {
+        renderApp();
+      }
+    }
+
+    function parseFormResponses(data) {
+      rawResponses = data.map(row => {
+        const name = row["What is your name?"] || "Anonymous";
+        const w1Picks = {};
+        for (const key in row) {
+          if (key.includes("vs")) {
+            w1Picks[key] = row[key];
+          }
+        }
+        return {
+          name: name,
+          picks: { 1: w1Picks } // Map each week dynamically
+        };
+      });
+    }
+
+    function calculateWeekScore(playerPicks, week) {
       const weekWinners = WINNERS[week] || {};
       let score = 0;
-
       for (const game in weekWinners) {
-        if (weekPicks[game] === weekWinners[game]) {
+        if (playerPicks && playerPicks[game] === weekWinners[game]) {
           score++;
         }
       }
@@ -133,37 +156,47 @@
       const selectedWeek = parseInt(document.getElementById("weekSelect").value);
       document.getElementById("weeklyTitle").innerText = `🏈 Week ${selectedWeek} Pick Details`;
 
-      // Calculate totals for each player
-      const playerStats = RESPONSES.map(player => {
-        const w1Score = calculateScores(player, 1);
-        const w2Score = calculateScores(player, 2);
+      const playerStats = rawResponses.map(player => {
+        let cumulativeScore = 0;
+        const weekScores = {};
+
+        for (let w = 1; w <= TOTAL_WEEKS; w++) {
+          const wScore = calculateWeekScore(player.picks ? player.picks[w] : {}, w);
+          weekScores[w] = wScore;
+          cumulativeScore += wScore;
+        }
+
         return {
           name: player.name,
-          w1: w1Score,
-          w2: w2Score,
-          total: w1Score + w2Score,
-          picks: player.picks[selectedWeek] || {}
+          selectedWeekScore: weekScores[selectedWeek] || 0,
+          total: cumulativeScore,
+          picks: (player.picks && player.picks[selectedWeek]) || {}
         };
       });
 
-      // Sort by cumulative total score descending
       playerStats.sort((a, b) => b.total - a.total);
 
-      // Render Leaderboard
+      // Render Standings
       const leaderboardBody = document.getElementById("leaderboardBody");
       leaderboardBody.innerHTML = playerStats.map((p, idx) => `
         <tr class="hover:bg-slate-800/50 transition">
           <td class="py-3 px-4 font-bold text-amber-500">#${idx + 1}</td>
           <td class="py-3 px-4 font-semibold text-white">${p.name}</td>
-          <td class="py-3 px-4 text-center">${p.w1}</td>
-          <td class="py-3 px-4 text-center">${p.w2}</td>
+          <td class="py-3 px-4 text-center">${p.selectedWeekScore}</td>
           <td class="py-3 px-4 text-right font-extrabold text-amber-400">${p.total} pts</td>
         </tr>
       `).join("");
 
-      // Render Weekly Picks Header
-      const weekGames = Object.keys(WINNERS[selectedWeek]);
+      // Render Weekly Picks Table
+      const weekGames = Object.keys(WINNERS[selectedWeek] || {});
       const weeklyHead = document.getElementById("weeklyHead");
+
+      if (weekGames.length === 0) {
+        weeklyHead.innerHTML = `<tr><th class="py-3 px-4">No matchup data entered yet for Week ${selectedWeek}.</th></tr>`;
+        document.getElementById("weeklyBody").innerHTML = "";
+        return;
+      }
+
       weeklyHead.innerHTML = `
         <tr>
           <th class="py-3 px-4 rounded-l-lg">Player</th>
@@ -172,7 +205,6 @@
         </tr>
       `;
 
-      // Render Weekly Picks Rows
       const weeklyBody = document.getElementById("weeklyBody");
       weeklyBody.innerHTML = playerStats.map(p => {
         const weekWinners = WINNERS[selectedWeek];
@@ -185,19 +217,17 @@
           return `<td class="py-3 px-4 text-center"><span class="px-2 py-1 rounded text-xs font-bold ${badgeColor}">${pick}</span></td>`;
         }).join("");
 
-        const weekScore = p[`w${selectedWeek}`];
         return `
           <tr class="hover:bg-slate-800/50 transition">
             <td class="py-3 px-4 font-semibold text-white">${p.name}</td>
             ${gameCells}
-            <td class="py-3 px-4 text-right font-bold text-slate-200">${weekScore} / ${weekGames.length}</td>
+            <td class="py-3 px-4 text-right font-bold text-slate-200">${p.selectedWeekScore} / ${weekGames.length}</td>
           </tr>
         `;
       }).join("");
     }
 
-    // Initialize on load
-    renderApp();
+    loadSheetData();
   </script>
 </body>
 </html>
