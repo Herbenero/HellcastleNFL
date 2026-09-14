@@ -1,263 +1,412 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Hellcastle NFL Pick 'Em</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <!-- PapaParse for parsing Google Sheets CSV data -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.2/papaparse.min.js"></script>
-    <style>
-        body { background-color: #0f172a; color: #f8fafc; font-family: system-ui, sans-serif; }
-        .accent-card { background: linear-gradient(145deg, #1e293b, #0f172a); border: 1px solid #334155; }
-    </style>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hellcastle NFL Pick'em Challenge</title>
+
+  <style>
+    :root {
+      --navy: #101a35;
+      --blue: #3157d5;
+      --gold: #f5b942;
+      --light: #f5f7fb;
+      --border: #dce2ef;
+      --green: #dff5e6;
+      --red: #ffe1e1;
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: var(--light);
+      color: #172033;
+    }
+
+    header {
+      background: var(--navy);
+      color: white;
+      padding: 24px;
+      text-align: center;
+    }
+
+    header h1 {
+      margin: 0 0 6px;
+      font-size: 28px;
+    }
+
+    header p {
+      margin: 0;
+      color: #cbd4f5;
+    }
+
+    main {
+      max-width: 1400px;
+      margin: auto;
+      padding: 24px;
+    }
+
+    section {
+      background: white;
+      border-radius: 14px;
+      padding: 20px;
+      margin-bottom: 24px;
+      box-shadow: 0 4px 18px #17203312;
+    }
+
+    h2 {
+      margin-top: 0;
+      color: var(--navy);
+    }
+
+    .table-wrap {
+      overflow-x: auto;
+    }
+
+    table {
+      border-collapse: collapse;
+      min-width: 760px;
+      width: 100%;
+    }
+
+    th,
+    td {
+      border: 1px solid var(--border);
+      padding: 12px;
+      text-align: center;
+      white-space: nowrap;
+    }
+
+    th {
+      background: var(--navy);
+      color: white;
+      position: sticky;
+      top: 0;
+      z-index: 1;
+    }
+
+    th:first-child,
+    td:first-child {
+      text-align: left;
+      position: sticky;
+      left: 0;
+      background: white;
+      z-index: 2;
+    }
+
+    th:first-child {
+      background: var(--navy);
+      z-index: 3;
+    }
+
+    .correct {
+      background: var(--green);
+      font-weight: bold;
+    }
+
+    .incorrect {
+      background: var(--red);
+    }
+
+    .admin-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      gap: 14px;
+    }
+
+    label {
+      font-weight: bold;
+      display: block;
+      margin-bottom: 6px;
+    }
+
+    input {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      font-size: 15px;
+    }
+
+    button {
+      margin-top: 18px;
+      background: var(--blue);
+      color: white;
+      border: 0;
+      border-radius: 8px;
+      padding: 11px 18px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    button:hover {
+      background: #203fae;
+    }
+
+    .status {
+      margin-top: 12px;
+      font-weight: bold;
+    }
+
+    .loading {
+      color: #68738b;
+    }
+  </style>
 </head>
-<body class="min-h-screen p-4 md:p-8">
 
-    <div class="max-w-7xl mx-auto space-y-6">
-        <!-- Header -->
-        <header class="flex flex-col md:flex-row justify-between items-center bg-slate-800 p-6 rounded-xl border border-slate-700 gap-4">
-            <div>
-                <h1 class="text-3xl font-extrabold text-amber-500 tracking-wide uppercase">Hellcastle NFL Pick 'Em</h1>
-                <p class="text-slate-400 text-sm">22-Week Leaderboard & Weekly Pick Tracking</p>
-            </div>
-            <div class="flex items-center gap-3">
-                <label for="weekSelect" class="text-sm font-semibold text-slate-300">Select Week:</label>
-                <select id="weekSelect" onchange="renderApp()" class="bg-slate-900 border border-slate-700 text-amber-400 font-bold px-3 py-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-amber-500">
-                    <!-- Populated dynamically up to Week 22 -->
-                </select>
-            </div>
-        </header>
+<body>
+  <header>
+    <h1>Hellcastle NFL Pick'em Challenge</h1>
+    <p>Week 1 • One point per correct pick</p>
+  </header>
 
-        <!-- Overall Standings -->
-        <section class="accent-card p-6 rounded-xl shadow-xl">
-            <h2 class="text-xl font-bold text-slate-200 mb-4 flex items-center gap-2">
-                <span>🏆</span> Cumulative Season Standings
-            </h2>
-            <div class="overflow-x-auto">
-                <table class="w-full text-left text-sm text-slate-300">
-                    <thead class="bg-slate-900/60 text-slate-400 uppercase text-xs">
-                        <tr id="leaderboardHead">
-                            <th class="py-3 px-4 rounded-l-lg">Rank</th>
-                            <th class="py-3 px-4">Player</th>
-                            <th class="py-3 px-4 text-center">Selected Week Correct</th>
-                            <th class="py-3 px-4 text-right rounded-r-lg">Total Season Score</th>
-                        </tr>
-                    </thead>
-                    <tbody id="leaderboardBody" class="divide-y divide-slate-800">
-                        <!-- Populated via JS -->
-                    </tbody>
-                </table>
-            </div>
-        </section>
+  <main>
+    <section>
+      <h2>Pick'em Results</h2>
+      <div id="grid" class="loading">Loading picks...</div>
+    </section>
 
-        <!-- Weekly Breakdown -->
-        <section class="accent-card p-6 rounded-xl shadow-xl">
-            <h2 id="weeklyTitle" class="text-xl font-bold text-slate-200 mb-4 flex items-center gap-2">
-                <span>🏈</span> Pick Details
-            </h2>
-            <div class="overflow-x-auto">
-                <table class="w-full text-left text-sm text-slate-300">
-                    <thead class="bg-slate-900/60 text-slate-400 uppercase text-xs" id="weeklyHead">
-                        <!-- Populated via JS -->
-                    </thead>
-                    <tbody id="weeklyBody" class="divide-y divide-slate-800">
-                        <!-- Populated via JS -->
-                    </tbody>
-                </table>
-            </div>
-        </section>
-    </div>
+    <section>
+      <h2>Leaderboard</h2>
+      <div id="leaderboard" class="loading">Calculating totals...</div>
+    </section>
 
-    <script>
-        // 1. SETTINGS & CONSTANTS
-const TOTAL_WEEKS = 22;
+    <section>
+      <h2>Admin Answer Entry</h2>
+      <p>Enter the correct answer for each game. For the final game, enter the total points scored by both teams.</p>
 
-// Published Google Sheet CSV URL
-const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQKVQOWhA9vE55DU0pz53JIE2ViLnW6tuH-vfKJO12IjZXG0r6E6qnEwaPNvQFf0Ir-5cJzT0BfgWg3/pub?output=csv";
+      <div id="adminForm" class="admin-grid"></div>
 
-// Set weekly winning team outcomes for completed games
-        const WINNERS = {
-  1: {
-    "Patriots vs Seahawks": "Seahawks",
-    "49ers vs Rams": "49ers",
-    "Saints vs Lions": "Lions",
-    "Falcons vs Steelers": "Steelers",
-    "Ravens vs Colts": "Ravens",
-    "Bills vs Texans": "Bills",
-    "Bears vs Panthers": "Bears",
-    "Browns vs Jaguars": "Jaguars",
-    "Jets vs Titans": "Jets",
-    "Buccaneers vs Bengals": "Bengals",
-    "Cardinals vs Chargers": "Cardinals",
-    "Packers vs Vikings": "Vikings",
-    "Dolphins vs Raiders": "Raiders",
-    "Commanders vs Eagles": "Eagles",
-    "Cowboys vs Giants": "Giants"
-  },
-  2: {
-    "TeamA vs TeamB": "WinnerName"
-    // Add Week 2 matchups and winners here
-  },
-  3: {
-    // Add Week 3 matchups and winners here
-  }
-};
+      <button onclick="saveAnswers()">Save Answers</button>
+      <div id="adminStatus" class="status"></div>
+    </section>
+  </main>
 
-let rawResponses = [];
+  <script>
+    const API_URL =
+      "https://script.google.com/macros/s/AKfycbwuVgr8Ka-v2XZxEwfLUZ6ng7iVaVavuPLN_tSwfZexdzZapasfipQPCNKLgvDaoJtm/exec";
 
-// Populate Week dropdown for 22 weeks
-const weekSelect = document.getElementById("weekSelect");
-for (let i = 1; i <= TOTAL_WEEKS; i++) {
-    const opt = document.createElement("option");
-    opt.value = i;
-    opt.innerText = `Week ${i}`;
-    weekSelect.appendChild(opt);
-}
+    let games = [];
+    let players = [];
+    let picks = {};
+    let answers = {};
 
-// Load data from Google Sheet CSV
-function loadSheetData() {
-    if (SHEET_CSV_URL.startsWith("http")) {
-        Papa.parse(SHEET_CSV_URL, {
-            download: true,
-            header: true,
-            complete: function(results) {
-                parseFormResponses(results.data);
-                renderApp();
-            }
+    async function loadData() {
+      try {
+        const response = await fetch(API_URL);
+        const data = await response.json();
+
+        parseSpreadsheet(data.rows || data);
+        renderAdminForm();
+        renderGrid();
+        renderLeaderboard();
+      } catch (error) {
+        document.querySelector("#grid").textContent =
+          "Unable to load picks. Check that the Apps Script is deployed for anyone with the link.";
+        console.error(error);
+      }
+    }
+
+    function parseSpreadsheet(rows) {
+      if (!rows || rows.length < 2) return;
+
+      const headers = rows[0].map(value => String(value).trim());
+
+      // Expected format:
+      // Game | Player 1 | Player 2 | Player 3 ...
+      players = headers.slice(1).filter(Boolean);
+
+      games = rows.slice(1)
+        .filter(row => row[0])
+        .map((row, index) => ({
+          id: `game-${index}`,
+          name: String(row[0]),
+          values: row.slice(1).map(value => String(value ?? "").trim())
+        }));
+
+      players.forEach((player, playerIndex) => {
+        picks[player] = {};
+
+        games.forEach(game => {
+          picks[player][game.id] = game.values[playerIndex] || "";
         });
-    } else {
-        renderApp();
+      });
     }
-}
 
-function parseFormResponses(data) {
-            const playerMap = {};
+    function renderAdminForm() {
+      const form = document.querySelector("#adminForm");
 
-            data.forEach(row => {
-                const name = row["What is your name?"] || "Anonymous";
-                const weekStr = row["Which week are you submitting for?"] || "Week 1";
-                const weekNum = parseInt(weekStr.replace(/\D/g, "")) || 1;
-
-                const weekPicks = {};
-                for (const key in row) {
-                    if (key.includes("vs")) {
-                        const cleanKey = key.split(" - ")[0].replace(/[?]/g, "").trim();
-                        // Trim extra spaces from user pick values as well
-                        const pickValue = row[key] ? row[key].trim() : "";
-                        weekPicks[cleanKey] = pickValue;
-                    }
-                }
-
-                if (!playerMap[name]) {
-                    playerMap[name] = { name: name, picks: {} };
-                }
-                
-                playerMap[name].picks[weekNum] = weekPicks;
-            });
-
-            rawResponses = Object.values(playerMap);
-        }
-
-function calculateWeekScore(playerPicks, week) {
-    const weekWinners = WINNERS[week] || {};
-    let score = 0;
-    for (const game in weekWinners) {
-        if (weekWinners[game] && playerPicks && playerPicks[game] === weekWinners[game]) {
-            score++;
-        }
+      form.innerHTML = games.map((game, index) => `
+        <div>
+          <label for="${game.id}">
+            ${index + 1}. ${escapeHtml(game.name)}
+          </label>
+          <input
+            id="${game.id}"
+            data-game-id="${game.id}"
+            placeholder="${index === games.length - 1
+              ? "Total points"
+              : "Correct answer"}"
+            value="${escapeHtml(answers[game.id] || "")}"
+          />
+        </div>
+      `).join("");
     }
-    return score;
-}
 
-function renderApp() {
-    const selectedWeek = parseInt(document.getElementById("weekSelect").value);
-    document.getElementById("weeklyTitle").innerText = `🏈 Week ${selectedWeek} Pick Details`;
+    function renderGrid() {
+      const container = document.querySelector("#grid");
 
-    const playerStats = rawResponses.map(player => {
-        let cumulativeScore = 0;
-        const weekScores = {};
+      const header = `
+        <tr>
+          <th>Game / Question</th>
+          ${players.map(player => `<th>${escapeHtml(player)}</th>`).join("")}
+        </tr>
+      `;
 
-        for (let w = 1; w <= TOTAL_WEEKS; w++) {
-            const wScore = calculateWeekScore(player.picks ? player.picks[w] : {}, w);
-            weekScores[w] = wScore;
-            cumulativeScore += wScore;
-        }
+      const body = games.map(game => `
+        <tr>
+          <td>${escapeHtml(game.name)}</td>
+          ${players.map(player => {
+            const answer = picks[player][game.id] || "";
+            const correct = answers[game.id] &&
+              normalize(answer) === normalize(answers[game.id]);
+
+            return `
+              <td class="${answers[game.id]
+                ? correct ? "correct" : "incorrect"
+                : ""}">
+                ${escapeHtml(answer)}
+              </td>
+            `;
+          }).join("")}
+        </tr>
+      `).join("");
+
+      container.innerHTML = `
+        <div class="table-wrap">
+          <table>
+            <thead>${header}</thead>
+            <tbody>${body}</tbody>
+          </table>
+        </div>
+      `;
+    }
+
+    function renderLeaderboard() {
+      const results = players.map(player => {
+        let total = 0;
+        let tieBreakerDifference = Number.MAX_SAFE_INTEGER;
+
+        games.forEach((game, index) => {
+          const playerAnswer = normalize(picks[player][game.id]);
+          const correctAnswer = normalize(answers[game.id]);
+
+          if (correctAnswer && playerAnswer === correctAnswer) {
+            total++;
+          }
+
+          if (index === games.length - 1 && answers[game.id]) {
+            const estimate = Number(picks[player][game.id]);
+            const actual = Number(answers[game.id]);
+
+            if (!Number.isNaN(estimate) && !Number.isNaN(actual)) {
+              tieBreakerDifference = Math.abs(estimate - actual);
+            }
+          }
+        });
 
         return {
-            name: player.name,
-            selectedWeekScore: weekScores[selectedWeek] || 0,
-            total: cumulativeScore,
-            picks: (player.picks && player.picks[selectedWeek]) || {}
+          player,
+          total,
+          tieBreakerDifference
         };
-    });
+      });
 
-    playerStats.sort((a, b) => b.total - a.total);
+      results.sort((a, b) =>
+        b.total - a.total ||
+        a.tieBreakerDifference - b.tieBreakerDifference
+      );
 
-    // Render Cumulative Standings
-    const leaderboardBody = document.getElementById("leaderboardBody");
-    leaderboardBody.innerHTML = playerStats.map((p, idx) => `
-        <tr class="hover:bg-slate-800/50 transition">
-            <td class="py-3 px-4 font-bold text-amber-500">#${idx + 1}</td>
-            <td class="py-3 px-4 font-semibold text-white">${p.name}</td>
-            <td class="py-3 px-4 text-center">${p.selectedWeekScore}</td>
-            <td class="py-3 px-4 text-right font-extrabold text-amber-400">${p.total} pts</td>
-        </tr>
-    `).join("");
-
-    // Derive all game matchups present in responses or completed winners
-    const weekWinners = WINNERS[selectedWeek] || {};
-    const allMatchesInPicks = playerStats.length > 0 ? Object.keys(playerStats[0].picks) : [];
-    const weekGames = Array.from(new Set([...Object.keys(weekWinners), ...allMatchesInPicks]));
-
-    const weeklyHead = document.getElementById("weeklyHead");
-    if (weekGames.length === 0) {
-        weeklyHead.innerHTML = `<tr><th class="py-3 px-4">No matchup data entered yet for Week ${selectedWeek}.</th></tr>`;
-        document.getElementById("weeklyBody").innerHTML = "";
-        return;
+      document.querySelector("#leaderboard").innerHTML = `
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Rank</th>
+                <th>Player</th>
+                <th>Correct Picks</th>
+                <th>Tie-Breaker Difference</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${results.map((result, index) => `
+                <tr>
+                  <td>${index + 1}</td>
+                  <td>${escapeHtml(result.player)}</td>
+                  <td>${result.total}</td>
+                  <td>
+                    ${result.tieBreakerDifference === Number.MAX_SAFE_INTEGER
+                      ? "—"
+                      : result.tieBreakerDifference}
+                  </td>
+                </tr>
+              `).join("")}
+            </tbody>
+          </table>
+        </div>
+      `;
     }
 
-    weeklyHead.innerHTML = `
-        <tr>
-            <th class="py-3 px-4 rounded-l-lg">Player</th>
-            ${weekGames.map(g => {
-                const winner = weekWinners[g];
-                const winnerLabel = winner ? `Winner: ${winner}` : "Pending";
-                return `<th class="py-3 px-4 text-center">${g}<br><span class="text-xs text-amber-500 font-normal">(${winnerLabel})</span></th>`;
-            }).join("")}
-            <th class="py-3 px-4 text-right rounded-r-lg">Week ${selectedWeek} Score</th>
-        </tr>
-    `;
+    async function saveAnswers() {
+      const fields = document.querySelectorAll("[data-game-id]");
 
-    // Render Weekly Table Rows
-    const weeklyBody = document.getElementById("weeklyBody");
-    weeklyBody.innerHTML = playerStats.map(p => {
-        const gameCells = weekGames.map(game => {
-            const pick = p.picks[game] || "-";
-            const winner = weekWinners[game];
-            let badgeColor = "";
+      const newAnswers = {};
+      fields.forEach(field => {
+        newAnswers[field.dataset.gameId] = field.value.trim();
+      });
 
-            if (!winner) {
-                badgeColor = "bg-slate-800 text-slate-400 border border-slate-700";
-            } else if (pick === winner) {
-                badgeColor = "bg-emerald-900/60 text-emerald-400 border border-emerald-700";
-            } else {
-                badgeColor = "bg-rose-900/60 text-rose-400 border border-rose-700";
-            }
-            return `<td class="py-3 px-4 text-center"><span class="px-2 py-1 rounded text-xs font-bold ${badgeColor}">${pick}</span></td>`;
-        }).join("");
+      try {
+        const response = await fetch(API_URL, {
+          method: "POST",
+          body: JSON.stringify({
+            week: "Week1",
+            answers: newAnswers
+          })
+        });
 
-        return `
-            <tr class="hover:bg-slate-800/50 transition">
-                <td class="py-3 px-4 font-semibold text-white">${p.name}</td>
-                ${gameCells}
-                <td class="py-3 px-4 text-right font-bold text-slate-200">${p.selectedWeekScore} / ${Object.keys(weekWinners).length}</td>
-            </tr>
-        `;
-    }).join("");
-}
+        if (!response.ok) throw new Error("Save failed");
 
-loadSheetData();
-    </script>
+        answers = newAnswers;
+        renderGrid();
+        renderLeaderboard();
+
+        document.querySelector("#adminStatus").textContent =
+          "Answers saved successfully.";
+      } catch (error) {
+        document.querySelector("#adminStatus").textContent =
+          "Unable to save answers. Check the Apps Script doPost function and deployment permissions.";
+        console.error(error);
+      }
+    }
+
+    function normalize(value) {
+      return String(value || "").trim().toLowerCase();
+    }
+
+    function escapeHtml(value) {
+      return String(value || "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
+    }
+
+    loadData();
+  </script>
 </body>
 </html>
