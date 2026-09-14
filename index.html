@@ -81,19 +81,19 @@
         const WINNERS = {
             1: {
                 "Patriots vs Seahawks": "Seahawks",
-                "49ers vs Rams": "49ers"
-                "Saints vs Lions": "Lions"
-                "Falcons vs Steelers": "Steelers"
-                "Ravens vs Colts": "Ravens"
-                "Bills vs Texans": "Bills"
-                "Bears vs Panthers": "Bears"
-                "Browns vs Jaguars": "Jaguars"
-                "Jets vs Titans": "Jets"
-                "Buccaneers vs Bengals": "Bengals"
-                "Cardinals vs Chargers": "Cardinals"
-                "Packers vs Vikings": "Vikings"
-                "Dolphins vs Raiders": "Raiders"
-                "Commanders vs Eagles": "Eagles"
+                "49ers vs Rams": "49ers",
+                "Saints vs Lions": "Lions",
+                "Falcons vs Steelers": "Steelers",
+                "Ravens vs Colts": "Ravens",
+                "Bills vs Texans": "Bills",
+                "Bears vs Panthers": "Bears",
+                "Browns vs Jaguars": "Jaguars",
+                "Jets vs Titans": "Jets",
+                "Buccaneers vs Bengals": "Bengals",
+                "Cardinals vs Chargers": "Cardinals",
+                "Packers vs Vikings": "Vikings",
+                "Dolphins vs Raiders": "Raiders",
+                "Commanders vs Eagles": "Eagles",
                 "Cowboys vs Giants": "Giants"
             }
             // Add entries for weeks 2 through 22 as games complete
@@ -112,8 +112,7 @@
 
         // Load data from Google Sheet CSV
         function loadSheetData() {
-            if (https://docs.google.com/spreadsheets/d/e/2PACX-1vQKVQOWhA9vE55DU0pz53JIE2ViLnW6tuH-vfKJO12IjZXG0r6E6qnEwaPNvQFf0Ir-5cJzT0BfgWg3/pub?output=csv("http")) {
-                Papa.parse(SHEET_CSV_URL, {
+if (SHEET_CSV_URL.startsWith("http")) Papa.parse(SHEET_CSV_URL, {
                     download: true,
                     header: true,
                     complete: function(results) {
