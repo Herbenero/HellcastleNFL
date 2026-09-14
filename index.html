@@ -130,15 +130,14 @@ function parseFormResponses(data) {
 
     data.forEach(row => {
         const name = row["What is your name?"] || "Anonymous";
-        
         const weekStr = row["Which week are you submitting for?"] || "Week 1";
         const weekNum = parseInt(weekStr.replace(/\D/g, "")) || 1;
 
         const weekPicks = {};
         for (const key in row) {
             if (key.includes("vs")) {
-                // Strip out tiebreaker text or extra space so keys match WINNERS object cleanly
-                const cleanKey = key.split(" - ")[0].trim();
+                // Remove tiebreakers and trailing question marks so keys match WINNERS object
+                const cleanKey = key.split(" - ")[0].replace(/[?]/g, "").trim();
                 weekPicks[cleanKey] = row[key];
             }
         }
