@@ -77,26 +77,26 @@ const TOTAL_WEEKS = 22;
 const SHEET_CSV_URL = "https://docs.google.com/spreadsheets/d/e/2PACX-1vQKVQOWhA9vE55DU0pz53JIE2ViLnW6tuH-vfKJO12IjZXG0r6E6qnEwaPNvQFf0Ir-5cJzT0BfgWg3/pub?output=csv";
 
 // Set weekly winning team outcomes for completed games
-const WINNERS = {
-    1: {
-        "Patriots vs Seahawks": "Seahawks",
-        "49ers vs Rams": "49ers",
-        "Saints vs Lions": "Lions",
-        "Falcons vs Steelers": "Steelers",
-        "Ravens vs Colts": "Ravens",
-        "Bills vs Texans": "Bills",
-        "Bears vs Panthers": "Bears",
-        "Browns vs Jaguars": "Jaguars",
-        "Jets vs Titans": "Jets",
-        "Buccaneers vs Bengals": "Bengals",
-        "Cardinals vs Chargers": "Cardinals",
-        "Packers vs Vikings": "Vikings",
-        "Dolphins vs Raiders": "Raiders",
-        "Commanders vs Eagles": "Eagles",
-        "Cowboys vs Giants": "Giants",
-        "Broncos vs Chiefs": "Chiefs" // Added game without tiebreaker string
-    }
-};
+        const WINNERS = {
+            1: {
+                "Patriots vs Seahawks": "Seahawks",
+                "49ers vs Rams": "49ers",
+                "Saints vs Lions": "Lions",
+                "Falcons vs Steelers": "Steelers",
+                "Ravens vs Colts": "Ravens",
+                "Bills vs Texans": "Bills",
+                "Bears vs Panthers": "Bears",
+                "Browns vs Jaguars": "Jaguars",
+                "Jets vs Titans": "Jets",
+                "Buccaneers vs Bengals": "Bengals",
+                "Cardinals vs Chargers": "Cardinals",
+                "Packers vs Vikings": "Vikings",
+                "Dolphins vs Raiders": "Raiders",
+                "Commanders vs Eagles": "Eagles",
+                "Cowboys vs Giants": "Giants",
+                "Broncos vs Chiefs": "Chiefs"
+            }
+        };
 
 let rawResponses = [];
 
@@ -126,31 +126,32 @@ function loadSheetData() {
 }
 
 function parseFormResponses(data) {
-    const playerMap = {};
+            const playerMap = {};
 
-    data.forEach(row => {
-        const name = row["What is your name?"] || "Anonymous";
-        const weekStr = row["Which week are you submitting for?"] || "Week 1";
-        const weekNum = parseInt(weekStr.replace(/\D/g, "")) || 1;
+            data.forEach(row => {
+                const name = row["What is your name?"] || "Anonymous";
+                const weekStr = row["Which week are you submitting for?"] || "Week 1";
+                const weekNum = parseInt(weekStr.replace(/\D/g, "")) || 1;
 
-        const weekPicks = {};
-        for (const key in row) {
-            if (key.includes("vs")) {
-                // Remove tiebreakers and trailing question marks so keys match WINNERS object
-                const cleanKey = key.split(" - ")[0].replace(/[?]/g, "").trim();
-                weekPicks[cleanKey] = row[key];
-            }
+                const weekPicks = {};
+                for (const key in row) {
+                    if (key.includes("vs")) {
+                        const cleanKey = key.split(" - ")[0].replace(/[?]/g, "").trim();
+                        // Trim extra spaces from user pick values as well
+                        const pickValue = row[key] ? row[key].trim() : "";
+                        weekPicks[cleanKey] = pickValue;
+                    }
+                }
+
+                if (!playerMap[name]) {
+                    playerMap[name] = { name: name, picks: {} };
+                }
+                
+                playerMap[name].picks[weekNum] = weekPicks;
+            });
+
+            rawResponses = Object.values(playerMap);
         }
-
-        if (!playerMap[name]) {
-            playerMap[name] = { name: name, picks: {} };
-        }
-        
-        playerMap[name].picks[weekNum] = weekPicks;
-    });
-
-    rawResponses = Object.values(playerMap);
-}
 
 function calculateWeekScore(playerPicks, week) {
     const weekWinners = WINNERS[week] || {};
